@@ -2,10 +2,11 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-The Token Anxiety widget shows you exactly what every task in your conversation
-cost — live, while you work. It sits quietly in the band under the chat box and
-tells you when DeepSeek prices are peaking, which tasks drank your tokens, and
-why — no setup, no extra dependencies.
+The Token Anxiety widget tracks the cost of every task in your conversation in
+real time. It runs in the band under the chat composer and shows DeepSeek
+pricing status (peak/valley), per-task token usage and cost, and a one-click
+analysis of where tokens were spent. It is installed as a bundle with no
+additional dependencies.
 
 **Install** (from any directory; the path is absolute):
 
@@ -18,14 +19,13 @@ Then restart `dsh web` and refresh the page — done.
 ![Tasks tab](shots/Tasksdark.png)
 
 - **Live pricing status** — peak/valley windows for your timezone, plus local time
-- **Cost at a glance** — your current cost, and the projected post-hike figure in
-  red when prices change
+- **Cost overview** — current cost and the projected post-hike figure in red
 - **Per-task breakdown** — a sortable table of every task with its total cost and
   token usage; hover any row for details
-- **Currency in your terms** — COP / USD / CNY out of the box, plus ~40 more with
-  regional formatting (¥, €, £, ₩…) and live FX rates
-- **One-click explain** — "why did this task cost so much?" gets a short, streamed
-  answer written in your language
+- **Currency support** — COP / USD / CNY by default, plus ~40 more with regional
+  formatting (¥, €, £, ₩…) and live FX rates
+- **One-click explain** — a short, streamed analysis of why a task cost what it
+  did, written in your language
 - **Dark & light, English & Chinese** — follows your harness theme and locale
 
 It is packaged as an installable bundle for DeepSeek Harness (composed through
