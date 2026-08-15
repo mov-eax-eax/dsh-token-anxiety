@@ -1,5 +1,7 @@
 # dsh-token-anxiety
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 The Token Anxiety chip, packaged as an installable out-of-tree bundle. A small
 status chip sits in the band under the chat composer and shows, for the open
 conversation:
@@ -119,3 +121,7 @@ dsh-token-anxiety/
 ├── lib/client.js           # browser half: the chip (hand-written bundle)
 └── pricing.override.json   # written by the pricing-sync route; merged over PRICING at boot
 ```
+
+## License
+
+[MIT](LICENSE) © Angel Tocancipa
