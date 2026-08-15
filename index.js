@@ -820,10 +820,13 @@ async function detectLanguageLlm(llm, provider, model, sample) {
   const sys = 'You are a language detector. Reply with a single lowercase ISO 639-1 code and nothing else.'
   const request = { provider, model, messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }], system: sys, maxTokens: 8, temperature: 0 }
   let text = ''
+  let sawDelta = false
   try {
     for await (const chunk of llm.stream(request)) {
-      if (chunk.type === 'text-delta') text += chunk.text
-      else if (chunk.type === 'block-end' && chunk.block && chunk.block.type === 'text') text += chunk.block.text
+      if (chunk.type === 'text-delta') { text += chunk.text; sawDelta = true }
+      // block-end carries the FULL accumulated block text, so it is only a
+      // fallback for adapters that skip token deltas — never append it twice.
+      else if (chunk.type === 'block-end' && chunk.block && chunk.block.type === 'text' && !sawDelta) text += chunk.block.text
     }
   } catch (e) {
     return null
@@ -931,13 +934,17 @@ async function explainTask(ctx, args, onDelta) {
   const request = { provider, model, messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }], system: sys, maxTokens: 600, temperature: 0.4, signal: controller.signal }
   const collect = async () => {
     let text = ''
+    let sawDelta = false
     let truncated = false
     let failure = null
     for await (const chunk of llm.stream(request)) {
       if (chunk.type === 'text-delta') {
         text += chunk.text
+        sawDelta = true
         if (onDelta) onDelta(chunk.text)
-      } else if (chunk.type === 'block-end' && chunk.block && chunk.block.type === 'text') {
+      } else if (chunk.type === 'block-end' && chunk.block && chunk.block.type === 'text' && !sawDelta) {
+        // block-end carries the FULL block text — fallback only when the
+        // adapter emitted no token deltas, otherwise this duplicates the text.
         text += chunk.block.text
         if (onDelta) onDelta(chunk.block.text)
       } else if (chunk.type === 'finish' && chunk.reason) {
@@ -1087,9 +1094,12 @@ async function runLlmJson(ctx, system, prompt) {
     temperature: 0,
   }
   let text = ''
+  let sawDelta = false
   for await (const chunk of llm.stream(request)) {
-    if (chunk.type === 'text-delta') text += chunk.text
-    else if (chunk.type === 'block-end' && chunk.block && chunk.block.type === 'text') text += chunk.block.text
+    if (chunk.type === 'text-delta') { text += chunk.text; sawDelta = true }
+    // block-end carries the FULL accumulated block text — fallback only when
+    // the adapter emitted no token deltas, otherwise this duplicates the text.
+    else if (chunk.type === 'block-end' && chunk.block && chunk.block.type === 'text' && !sawDelta) text += chunk.block.text
   }
   if (!text.trim()) throw new Error('LLM returned no text')
   const cleaned = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '')
