@@ -1,0 +1,8 @@
+# dsh-token-anxiety bundle patch: one plugin row.
+# The row makes the package a Loader entry: the node half registers the
+# 'tokenAnxiety' session projection, and the client-modules scan discovers the
+# package's dsh.client manifest (exports["./client"]) from this entry, serves
+# /plugins/dsh-token-anxiety/client.js, and composes the boot graph.
+- insert:
+    - id: token-anxiety
+      name: dsh-token-anxiety

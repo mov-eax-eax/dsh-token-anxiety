@@ -1,0 +1,28 @@
+{
+  "name": "dsh-token-anxiety",
+  "version": "0.1.0",
+  "description": "Token Anxiety chip: live cost-per-task graph over the session projection (peak/valley pricing, hour filter, waste flags, COP/USD)",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "lib/client.js",
+    "cordis.patch.yml"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-conversation"
+      ]
+    }
+  }
+}
