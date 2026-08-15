@@ -1,9 +1,21 @@
 {
   "name": "dsh-token-anxiety",
   "version": "0.1.0",
-  "description": "Token Anxiety chip: live cost-per-task graph over the session projection (peak/valley pricing, hour filter, waste flags, COP/USD)",
+  "description": "Token Anxiety chip for DeepSeek Harness: live per-task cost tracking over the session projection — peak/valley pricing, sortable cost table, currency manager (COP/USD/CNY + add/remove), click-to-explain, i18n",
   "type": "module",
   "main": "index.js",
+  "license": "MIT",
+  "keywords": [
+    "deepseek",
+    "harness",
+    "plugin",
+    "bundle",
+    "token",
+    "cost",
+    "pricing",
+    "currency",
+    "dsh"
+  ],
   "exports": {
     ".": "./index.js",
     "./client": "./lib/client.js",
@@ -12,7 +24,10 @@
   "files": [
     "index.js",
     "lib/client.js",
-    "cordis.patch.yml"
+    "cordis.patch.yml",
+    "README.md",
+    "SECURITY.md",
+    "LICENSE"
   ],
   "dsh": {
     "bundle": {

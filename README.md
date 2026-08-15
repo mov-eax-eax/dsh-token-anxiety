@@ -23,6 +23,29 @@ conversation:
 
 It survives restarts: it is composed through the profile, not loaded at runtime.
 
+## Requirements
+
+- DeepSeek Harness with a `web` profile (`dsh web`) — the bundle is composed
+  through the profile's `dsh.profile.bundles` list.
+- Node.js 22+ (the harness's own runtime; the bundle itself adds **zero
+  dependencies** — node builtins only).
+
+## Usage
+
+- Hover or click the chip in the composer band to open the popup.
+- **Overview** — headline cost (current, plus the projected post-hike figure in
+  red when the **Projected** checkbox is on), tasks / requests / tokens, cost
+  shape, waste snapshot, models, and the pricing table.
+- **Tasks** — sortable per-task table (`#` or share %). Click a bar to select
+  it and run **Explain**; hover a row for details. The hour strip filters by
+  peak/valley hours or waste flags.
+- **Prices** — current vs projected per-model rates (USD per 1M tokens) plus FX
+  rates for every enabled currency.
+- **Currency** — pick any enabled currency (defaults COP / USD / CNY); open the
+  chooser to see FX rates, add more (flags + search), or remove them.
+- **Explain** — one small LLM call per task, written in the conversation's
+  language.
+
 ## Screenshots
 
 _Taken with the bundle running in the web profile — replace with your own._
@@ -87,6 +110,36 @@ restart. After changing files, restart the web server. To remove:
 dsh plugin --profile web remove dsh-token-anxiety
 ```
 
+## Configuration
+
+### Currencies
+
+Defaults are **COP / USD / CNY**. Add or remove currencies from the chooser
+(any code in the ~40-currency catalog); the enabled list persists to
+`pricing.override.json` via `POST /token-anxiety/currencies` (a restart loads
+it). Rates are USD-base, refreshed by the pricing sync and cached for 24 h.
+
+### Pricing
+
+Prices are embedded in `PRICING` (`index.js`) as the fallback and can be
+refreshed from the official DeepSeek pricing page:
+
+```sh
+curl -X POST http://127.0.0.1:3080/token-anxiety/pricing-sync -H "Content-Type: application/json" -d '{}'
+```
+
+The route fetches the page, asks a model to extract the current and peak/valley
+rates (CNY → USD at a fixed 7.0 rate; the Beijing peak windows and the
+effective date are parsed too) and writes `pricing.override.json`. FX rates
+(`open.er-api.com`, keyless) ride along, cached daily. A restart merges the
+override over the defaults; the pricing-derived `stateVersion` discards stale
+projection caches.
+
+### Language
+
+When the harness locale is `zh`, the whole UI renders in Chinese and the
+currency defaults to CNY. It follows the harness `locale.preference` setting.
+
 ## Known limitations
 
 - **Root-session tasks only.** The projection fold is per-session and
@@ -105,11 +158,11 @@ dsh plugin --profile web remove dsh-token-anxiety
   predicate itself (loopback or `trustedHosts` Host, same-origin Origin,
   `sec-fetch-site`); the deployment still binds loopback-only.
 - **Pricing is embedded and dated.** The embedded `PRICING` is the fallback;
-  the Prices tab's *update from official website* button writes
-  `pricing.override.json` (fetched from the official page, CNY→USD at a fixed
-  7.0 rate), which a restart merges over the defaults. Editing `PRICING` by
-  hand still works; `stateVersion` derives from the active pricing, so any
-  change discards persisted projection-cache rows.
+  refreshing it is a host-side action (`POST /token-anxiety/pricing-sync`, see
+  [Configuration](#configuration)) that writes `pricing.override.json`; a
+  restart merges it over the defaults. Editing `PRICING` by hand still works;
+  `stateVersion` derives from the active pricing, so any change discards
+  persisted projection-cache rows.
 
 ## Files
 
@@ -117,10 +170,15 @@ dsh plugin --profile web remove dsh-token-anxiety
 dsh-token-anxiety/
 ├── package.json            # dsh.bundle + dsh.client manifests, exports["./client"]
 ├── cordis.patch.yml        # one plugin row
-├── index.js                # host half: projection fold + explain_task tool + /token-anxiety/explain + /token-anxiety/pricing-sync routes
+├── index.js                # host half: projection fold + explain_task tool + /token-anxiety/explain + /token-anxiety/pricing-sync + /token-anxiety/currencies routes
 ├── lib/client.js           # browser half: the chip (hand-written bundle)
-└── pricing.override.json   # written by the pricing-sync route; merged over PRICING at boot
+├── SECURITY.md             # security review
+├── shots/                  # UI screenshots (dark/light, tabs, currency chooser)
+└── LICENSE                 # MIT
 ```
+
+> `pricing.override.json` is runtime state (gitignored): it stores the synced
+> pricing, FX rates and the enabled-currency list.
 
 ## License
 
