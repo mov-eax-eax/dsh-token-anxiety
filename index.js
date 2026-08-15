@@ -870,7 +870,7 @@ function buildExplainPrompt(t, ctxInfo, fullPrompt, prevPrompt, lang) {
   if (t.retries) L.push('Model retries: ' + t.retries)
   L.push('Requests: ' + t.requests + ' \u00b7 tokens: miss ' + (t.missTokens || 0) + ' / hit ' + (t.hitTokens || 0) + ' / out ' + (t.outputTokens || 0))
   L.push('Cost now: $' + t.cop + ' COP \u00b7 post-hike: $' + t.postCop + ' COP \u00b7 ' + (t.sharePct || 0) + '% of the conversation')
-  L.push('Write a VERY SHORT analysis (30-60 words total, hard maximum 70 words) in plain text with EXACTLY these four labeled lines and nothing else:\nWanted: <one line: the gist of what the user asked>\nHappened: <one line: what the task did and why it cost / wasted what it did, with the actual numbers>\nAvoid: <one line: 1-2 concrete actions>\nNext time: <one line of plain, non-technical guidance the user can copy-paste as their next prompt, referring to the thing being worked on the way the user sees it and asking before exploring broadly>\nNo markdown headers, no bullets, no preamble, no extra lines.')
+  L.push('Write a concise analysis (60-100 words total, hard maximum 120) in plain text with EXACTLY these four labeled lines and nothing else:\nWanted: <1-2 lines: the gist of what the user asked>\nHappened: <2-3 lines: what the task did and why it cost / wasted what it did, referencing the actual numbers, tools and errors>\nAvoid: <1-2 lines: 2-3 concrete actions>\nNext time: <1-2 sentences of plain, non-technical guidance the user can copy-paste as their next prompt, referring to the thing being worked on the way the user sees it and asking before exploring broadly>\nNo markdown headers, no bullets, no preamble, no extra lines.')
   return L.join('\n')
 }
 
@@ -928,7 +928,7 @@ async function explainTask(ctx, args, onDelta) {
   // instead of hanging the route (and wedging the explain throttle) forever.
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 60000)
-  const request = { provider, model, messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }], system: sys, maxTokens: 300, temperature: 0.4, signal: controller.signal }
+  const request = { provider, model, messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }], system: sys, maxTokens: 600, temperature: 0.4, signal: controller.signal }
   const collect = async () => {
     let text = ''
     let truncated = false
