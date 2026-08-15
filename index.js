@@ -844,6 +844,17 @@ function detectLanguage(texts) {
   return best
 }
 
+// Clip a long text to its head and tail so big task prompts cannot bloat the
+// LLM context (the main reason explain was slow and hit the token limit).
+function clip(text, max) {
+  if (!text) return text
+  const s = String(text)
+  if (s.length <= max) return s
+  const head = Math.floor(max * 0.6)
+  const tail = max - head
+  return s.slice(0, head) + ' \u2026[clipped \u2014 ' + (s.length - max) + ' chars removed]\u2026 ' + s.slice(-tail)
+}
+
 function buildExplainPrompt(t, ctxInfo, fullPrompt, prevPrompt, lang) {
   const L = []
   L.push('You are analyzing one task of a coding-agent conversation to find where tokens were wasted and how to avoid it next time. Ground every claim in the quoted text below \u2014 do not invent what the user asked.')
@@ -851,14 +862,14 @@ function buildExplainPrompt(t, ctxInfo, fullPrompt, prevPrompt, lang) {
   if (langName && lang !== 'en') {
     L.push('The conversation is written in ' + langName + '. Write the ENTIRE analysis \u2014 every section heading and the final user guidance included \u2014 in ' + langName + '.')
   }
-  if (ctxInfo.title) L.push('Conversation title: ' + ctxInfo.title)
-  if (ctxInfo.cwd) L.push('Working directory: ' + ctxInfo.cwd)
+  if (ctxInfo.title) L.push('Conversation title: ' + clip(ctxInfo.title, 160))
+  if (ctxInfo.cwd) L.push('Working directory: ' + clip(ctxInfo.cwd, 160))
   L.push('ORIGINAL USER REQUEST (first message of the conversation \u2014 the user\u2019s overall intention):')
-  L.push(ctxInfo.firstUser ? ('>>> ' + ctxInfo.firstUser) : '>>> (no user message recorded at session start)')
+  L.push(ctxInfo.firstUser ? ('>>> ' + clip(ctxInfo.firstUser, 400)) : '>>> (no user message recorded at session start)')
   L.push('THIS TASK: ' + (t.sub ? ('subagent ' + String(t.label || t.session)) : ('turn #' + String(t.turn))))
   L.push('THIS TASK\u2019S USER PROMPT (full text):')
-  L.push('>>> ' + (fullPrompt || t.preview || '(no user prompt recorded for this task)'))
-  if (prevPrompt) L.push('PREVIOUS TASK\u2019S USER PROMPT (what the conversation was doing right before this task):\n>>> ' + prevPrompt)
+  L.push('>>> ' + (fullPrompt ? clip(fullPrompt, 600) : t.preview || '(no user prompt recorded for this task)'))
+  if (prevPrompt) L.push('PREVIOUS TASK\u2019S USER PROMPT (what the conversation was doing right before this task):\n>>> ' + clip(prevPrompt, 250))
   L.push('Waste flags: ' + ((t.waste || []).join(', ') || 'none'))
   const calls = t.toolCalls || []
   if (calls.length) L.push('Tool calls in this task: ' + calls.map((c) => c.name + ' x' + c.count).join(', '))
@@ -867,7 +878,7 @@ function buildExplainPrompt(t, ctxInfo, fullPrompt, prevPrompt, lang) {
   if (t.retries) L.push('Model retries: ' + t.retries)
   L.push('Requests: ' + t.requests + ' \u00b7 tokens: miss ' + (t.missTokens || 0) + ' / hit ' + (t.hitTokens || 0) + ' / out ' + (t.outputTokens || 0))
   L.push('Cost now: $' + t.cop + ' COP \u00b7 post-hike: $' + t.postCop + ' COP \u00b7 ' + (t.sharePct || 0) + '% of the conversation')
-  L.push('Write a complete analysis (180-320 words) with these sections: 1) \u201cWhat the user wanted\u201d \u2014 quote the relevant part of the ORIGINAL USER REQUEST and state in one plain line what the user actually asked for; 2) \u201cWhat happened\u201d \u2014 briefly, what this task did and why it cost / wasted what it did, including any waste beyond the flags; 3) \u201cHow to avoid it next time\u201d \u2014 2-4 concrete actions, referencing the actual tools, errors and numbers above; 4) \u201cHow to phrase the request next time\u201d \u2014 write 2-4 sentences of plain, non-technical guidance the USER (who does not know the internals of the app) can copy-paste as their next prompt. The guidance must: refer to the thing being worked on the way the user sees it (e.g. \u201cthe token anxiety plugin we built\u201d, \u201cthe little status widget under the chat that lists each task and its price\u201d), name the change as a small, scoped edit (\u201conly change that task list into a graph, nothing else\u201d), and tell the agent to remember the plugin we built and ask instead of exploring broadly. Do NOT use tool names, code names or technical jargon in section 4. END with section 4 \u2014 it is the most important part, do not leave it unfinished. Plain text, no markdown headers, no preamble.')
+  L.push('Write a SHORT, punchy analysis (~80-120 words, hard maximum 150 words) in plain text, one line per section: 1) \u201cWhat the user wanted\u201d \u2014 ONE line quoting the gist of the ORIGINAL USER REQUEST; 2) \u201cWhat happened\u201d \u2014 2-3 lines on what this task did and why it cost / wasted what it did, referencing the actual numbers, tools and errors above; 3) \u201cHow to avoid it next time\u201d \u2014 2-3 short concrete actions; 4) \u201cHow to phrase the request next time\u201d \u2014 1-2 sentences of plain, non-technical guidance the USER can copy-paste as their next prompt, referring to the thing being worked on the way the user sees it (e.g. \u201cthe token anxiety widget we built\u201d), naming the change as a small scoped edit, and telling the agent to remember what we built and ask instead of exploring broadly. Do NOT use tool names, code names or jargon in section 4. END with section 4. Plain text, no markdown headers, no preamble, no filler.')
   return L.join('\n')
 }
 
@@ -910,7 +921,7 @@ async function explainTask(ctx, args) {
   const lang = detectLanguage([...fullPrompts.entries()].filter(([k]) => k.indexOf('t:') === 0).map(([, v]) => v))
   const prompt = buildExplainPrompt(task, ctxInfo, fullPrompt, prevPrompt, lang)
   const sys = 'You are an expert on coding-agent token efficiency. Answer in plain text only: no markdown headers, no preamble, no chain-of-thought reasoning. Produce the requested analysis in the language of the conversation and end with the user-facing prompt guidance section.'
-  const request = { provider, model, messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }], system: sys, maxTokens: 2500, temperature: 0.4 }
+  const request = { provider, model, messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }], system: sys, maxTokens: 700, temperature: 0.4 }
   const collect = async () => {
     let text = ''
     let truncated = false
