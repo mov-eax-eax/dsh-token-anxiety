@@ -43,12 +43,25 @@ It survives restarts: it is composed through the profile, not loaded at runtime.
   and the pricing table: current vs projected rates per model, with the
   projected **peak/valley** values colored **green** when cheaper than the
   current rate and **red** when more expensive.
+
+  <table>
+    <tr>
+      <td><img src="shots/overviewdark.png" alt="Overview tab (dark)" width="340"></td>
+      <td><img src="shots/chatoverviewlight.png" alt="Overview tab (light)" width="340"></td>
+    </tr>
+  </table>
+
 - **Tasks** — a sortable per-task table (`#` or share %). Each row shows its
   total cost; with **Projected** on, the cost column adds the projected
   **peak/valley split** on two rows. Hover a row for a details tooltip; click a
   bar to select the task and run **Explain**.
 
-  <img src="shots/tasks-dark.png" alt="Tasks tab (dark)" width="680">
+  <table>
+    <tr>
+      <td><img src="shots/Tasksdark.png" alt="Tasks tab (dark)" width="340"></td>
+      <td><img src="shots/chatTasksLight.png" alt="Tasks tab (light)" width="340"></td>
+    </tr>
+  </table>
 
 - **Currency** — pick any enabled currency (defaults COP / USD / CNY); open the
   chooser to see FX rates, add more (flags + search), or remove them.
@@ -57,6 +70,13 @@ It survives restarts: it is composed through the profile, not loaded at runtime.
   call detects the ISO 639-1 code of the task's user prompt). The result is a
   compact ~60-100 word report in four labeled lines — `Wanted:` / `Happened:` /
   `Avoid:` / `Next time:` — rendered as rich text with bold accent labels.
+
+  <table>
+    <tr>
+      <td><img src="shots/AnalisisDark.png" alt="Explain analysis (dark)" width="340"></td>
+      <td><img src="shots/chattasksexplainlight.png" alt="Explain analysis (light)" width="340"></td>
+    </tr>
+  </table>
 
 ## Security
 
@@ -180,7 +200,7 @@ dsh-token-anxiety/
 ├── index.js                # host half: projection fold + explain_task tool + /token-anxiety/explain + /token-anxiety/pricing-sync + /token-anxiety/currencies routes
 ├── lib/client.js           # browser half: the widget (hand-written bundle)
 ├── SECURITY.md             # security review
-├── shots/                  # UI screenshots (chat-area dark/light, tasks)
+├── shots/                  # UI screenshots (chat area, overview, tasks, explain — dark/light)
 └── LICENSE                 # MIT
 ```
 
