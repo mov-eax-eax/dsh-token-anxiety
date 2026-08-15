@@ -2,8 +2,8 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-The Token Anxiety chip, packaged as an installable out-of-tree bundle. A small
-status chip sits in the band under the chat composer and shows, for the open
+The Token Anxiety widget, packaged as an installable out-of-tree bundle. A small
+status widget sits in the band under the chat composer and shows, for the open
 conversation:
 
 - live peak/valley pricing status (DeepSeek pricing windows) plus local time
@@ -32,7 +32,7 @@ It survives restarts: it is composed through the profile, not loaded at runtime.
 
 ## Usage
 
-- Hover or click the chip in the composer band to open the popup.
+- Hover or click the widget in the composer band to open the popup.
 - **Overview** — headline cost (current, plus the projected post-hike figure in
   red when the **Projected** checkbox is on), tasks / requests / tokens, cost
   shape, waste snapshot, models, and the pricing table.
@@ -71,7 +71,7 @@ throttle; nothing is written to the session log; zero runtime dependencies.
   pure fold over the ROOT session log that accumulates per-turn token usage,
   cost, tool signals and waste flags. No network, no model calls.
 - The same node half registers `POST /token-anxiety/explain` on the harness
-  webserver (`ctx.webServer`): the chip's Explain button fetch()es it and the
+  webserver (`ctx.webServer`): the widget's Explain button fetch()es it and the
   handler runs the LLM analysis (the same pipeline the `explain_task` tool
   uses). Nothing is appended to the session log, so sessions stay loadable.
 - `POST /token-anxiety/pricing-sync` (same trust fence) fetches the official
@@ -144,13 +144,13 @@ currency defaults to CNY. It follows the harness `locale.preference` setting.
 
 - **Root-session tasks only.** The projection fold is per-session and
   synchronous, so the subagent tree the old dynamic plugin aggregated on demand
-  cannot be folded here. Subagent conversations do not appear in the chip. (The
+  cannot be folded here. Subagent conversations do not appear in the widget. (The
   `explain_task` tool itself aggregates the full subagent tree, so its
   conversation context is complete.)
-- **Explain is a direct host route, not an agent turn.** The chip's button
+- **Explain is a direct host route, not an agent turn.** The widget's button
   fetch()es `/token-anxiety/explain` (registered by the host half on the
   harness webserver), and the host runs the analysis LLM call inline. The
-  analysis lives in the chip's component state, so it does not survive a page
+  analysis lives in the widget's component state, so it does not survive a page
   reload and it is not part of the session log (deliberately: it never writes a
   custom session event, so sessions stay loadable). The `explain_task` tool is
   kept for conversational asks ("why did this cost so much?"). The route sits
@@ -171,7 +171,7 @@ dsh-token-anxiety/
 ├── package.json            # dsh.bundle + dsh.client manifests, exports["./client"]
 ├── cordis.patch.yml        # one plugin row
 ├── index.js                # host half: projection fold + explain_task tool + /token-anxiety/explain + /token-anxiety/pricing-sync + /token-anxiety/currencies routes
-├── lib/client.js           # browser half: the chip (hand-written bundle)
+├── lib/client.js           # browser half: the widget (hand-written bundle)
 ├── SECURITY.md             # security review
 ├── shots/                  # UI screenshots (dark/light, tabs, currency chooser)
 └── LICENSE                 # MIT

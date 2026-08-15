@@ -54,7 +54,7 @@ cross-site CSRF from malicious pages (Origin + `sec-fetch-site`).
 - All data renders through React text nodes; no `dangerouslySetInnerHTML`, no
   injection surface. The pricing JSON view was removed.
 - The bundle writes no custom session events (`session.append` was removed), so
-  sessions using the chip remain loadable by any harness build.
+  sessions using the widget remain loadable by any harness build.
 - The currency/theme logic is pure client state; nothing sensitive is stored.
 
 ## Data handling

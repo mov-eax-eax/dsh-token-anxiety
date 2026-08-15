@@ -11,7 +11,7 @@
 // Deliberate scope: ROOT-session tasks only. The projection fold is per-session
 // and synchronous, so the subagent tree the dynamic plugin walked on demand
 // cannot be aggregated here (that path needs the subagents registry + session
-// query, both async). Subagent sessions do not appear in this chip.
+// query, both async). Subagent sessions do not appear in this widget.
 //
 // Pricing data: embedded defaults below, optionally overridden by a
 // pricing.override.json written by the /token-anxiety/pricing-sync route
@@ -442,7 +442,7 @@ const schema = {
 // census, errors, tokens, cost) ending with plain-language prompt guidance.
 // The tool runs async, so it aggregates the subagent tree like the dynamic
 // host did. Registered on the profile-level `tools` registry; the token-saving
-// preset's tools keep their names, so there is no collision. The chip's
+// preset's tools keep their names, so there is no collision. The widget's
 // Explain button does not use this tool: it calls the /token-anxiety/explain
 // host route (see apply) so the analysis needs no agent turn.
 
@@ -867,7 +867,7 @@ function buildExplainPrompt(t, ctxInfo, fullPrompt, prevPrompt, lang) {
   if (t.retries) L.push('Model retries: ' + t.retries)
   L.push('Requests: ' + t.requests + ' \u00b7 tokens: miss ' + (t.missTokens || 0) + ' / hit ' + (t.hitTokens || 0) + ' / out ' + (t.outputTokens || 0))
   L.push('Cost now: $' + t.cop + ' COP \u00b7 post-hike: $' + t.postCop + ' COP \u00b7 ' + (t.sharePct || 0) + '% of the conversation')
-  L.push('Write a complete analysis (180-320 words) with these sections: 1) \u201cWhat the user wanted\u201d \u2014 quote the relevant part of the ORIGINAL USER REQUEST and state in one plain line what the user actually asked for; 2) \u201cWhat happened\u201d \u2014 briefly, what this task did and why it cost / wasted what it did, including any waste beyond the flags; 3) \u201cHow to avoid it next time\u201d \u2014 2-4 concrete actions, referencing the actual tools, errors and numbers above; 4) \u201cHow to phrase the request next time\u201d \u2014 write 2-4 sentences of plain, non-technical guidance the USER (who does not know the internals of the app) can copy-paste as their next prompt. The guidance must: refer to the thing being worked on the way the user sees it (e.g. \u201cthe token anxiety plugin we built\u201d, \u201cthe little status chip under the chat that lists each task and its price\u201d), name the change as a small, scoped edit (\u201conly change that task list into a graph, nothing else\u201d), and tell the agent to remember the plugin we built and ask instead of exploring broadly. Do NOT use tool names, code names or technical jargon in section 4. END with section 4 \u2014 it is the most important part, do not leave it unfinished. Plain text, no markdown headers, no preamble.')
+  L.push('Write a complete analysis (180-320 words) with these sections: 1) \u201cWhat the user wanted\u201d \u2014 quote the relevant part of the ORIGINAL USER REQUEST and state in one plain line what the user actually asked for; 2) \u201cWhat happened\u201d \u2014 briefly, what this task did and why it cost / wasted what it did, including any waste beyond the flags; 3) \u201cHow to avoid it next time\u201d \u2014 2-4 concrete actions, referencing the actual tools, errors and numbers above; 4) \u201cHow to phrase the request next time\u201d \u2014 write 2-4 sentences of plain, non-technical guidance the USER (who does not know the internals of the app) can copy-paste as their next prompt. The guidance must: refer to the thing being worked on the way the user sees it (e.g. \u201cthe token anxiety plugin we built\u201d, \u201cthe little status widget under the chat that lists each task and its price\u201d), name the change as a small, scoped edit (\u201conly change that task list into a graph, nothing else\u201d), and tell the agent to remember the plugin we built and ask instead of exploring broadly. Do NOT use tool names, code names or technical jargon in section 4. END with section 4 \u2014 it is the most important part, do not leave it unfinished. Plain text, no markdown headers, no preamble.')
   return L.join('\n')
 }
 
@@ -1179,7 +1179,7 @@ export function apply(ctx) {
       stateVersion: 4 + pricingVersion(),
     })
   })
-  // Chip explain without an agent turn: a direct host route on the harness
+  // Widget explain without an agent turn: a direct host route on the harness
   // webserver. The bundle has no client-to-host RPC channel, so the browser
   // half fetch()es this route instead of queueing a message. It sits outside
   // the /api prefix, so it applies the same browser-trust predicate itself
@@ -1366,7 +1366,7 @@ export function apply(ctx) {
       type: 'object',
       additionalProperties: false,
       properties: {
-        task: { type: 'number', description: 'The task (turn) number to explain, as shown by the token anxiety chip (e.g. 3).' },
+        task: { type: 'number', description: 'The task (turn) number to explain, as shown by the token anxiety widget (e.g. 3).' },
         sessionId: { type: 'string', description: 'Optional exact session id; defaults to the current session.' },
       },
       required: ['task'],

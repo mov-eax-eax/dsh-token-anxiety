@@ -1,7 +1,7 @@
 {
   "name": "dsh-token-anxiety",
   "version": "0.1.0",
-  "description": "Token Anxiety chip for DeepSeek Harness: live per-task cost tracking over the session projection — peak/valley pricing, sortable cost table, currency manager (COP/USD/CNY + add/remove), click-to-explain, i18n",
+  "description": "Token Anxiety widget for DeepSeek Harness: live per-task cost tracking over the session projection — peak/valley pricing, sortable cost table, currency manager (COP/USD/CNY + add/remove), click-to-explain, i18n",
   "type": "module",
   "main": "index.js",
   "license": "MIT",
