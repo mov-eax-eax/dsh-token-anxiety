@@ -7,18 +7,24 @@ status widget sits in the band under the chat composer and shows, for the open
 conversation:
 
 - live peak/valley pricing status (DeepSeek pricing windows) plus local time
-- current cost plus a **projected post-hike** figure (checkbox-controlled, shown
-  in red; the view realigns to peak/valley-only once the new pricing takes effect)
-- a per-task **cost table** with sortable columns (`#` / share %) and hover
-  details + content previews
+- current cost plus a **projected post-hike** figure (the **Projected** checkbox
+  is on by default; projected values render in red, peak/valley split)
+- a per-task **cost table**: sortable, with a cost column and hover details
 - an hour filter strip with peak/valley/waste presets and peak-accented cells
 - a **currency manager**: COP / USD / CNY by default, add or remove any currency
   (flags + search), per-currency regional formatting (¥, €, £, ₩…), visible FX
   rates cached daily from a keyless API
-- click-to-explain: a direct host route — no agent turn — that writes the
-  analysis in the **conversation's language**
+- **click-to-explain**: streams a short, structured analysis in the
+  **conversation's language** (LLM-detected, ISO 639-1)
 - **i18n**: full Chinese UI when the harness locale is `zh` (defaults to CNY)
 - dark and light themes, following the harness's resolved theme
+
+<table>
+  <tr>
+    <td><img src="shots/chatAreaWidgetDark.png" alt="Widget in the chat area (dark)" width="340"></td>
+    <td><img src="shots/chatAreaWidgetLight.png" alt="Widget in the chat area (light)" width="340"></td>
+  </tr>
+</table>
 
 It survives restarts: it is composed through the profile, not loaded at runtime.
 
@@ -32,25 +38,25 @@ It survives restarts: it is composed through the profile, not loaded at runtime.
 ## Usage
 
 - Hover or click the widget in the composer band to open the popup.
-- **Overview** — headline cost (current, plus the projected post-hike figure in
-  red when the **Projected** checkbox is on), tasks / requests / tokens, cost
-  shape, waste snapshot, models, and the pricing table.
-- **Tasks** — sortable per-task table (`#` or share %). Click a bar to select
-  it and run **Explain**; hover a row for details. The hour strip filters by
-  peak/valley hours or waste flags.
+- **Overview** — headline cost in a big hero number (current, plus the projected
+  post-hike figure in red when **Projected** is on), tasks / requests / tokens,
+  and the pricing table: current vs projected rates per model, with the
+  projected **peak/valley** values colored **green** when cheaper than the
+  current rate and **red** when more expensive.
+- **Tasks** — a sortable per-task table (`#` or share %). Each row shows its
+  total cost; with **Projected** on, the cost column adds the projected
+  **peak/valley split** on two rows. Hover a row for a details tooltip; click a
+  bar to select the task and run **Explain**.
+
+  <img src="shots/tasks-dark.png" alt="Tasks tab (dark)" width="680">
+
 - **Currency** — pick any enabled currency (defaults COP / USD / CNY); open the
   chooser to see FX rates, add more (flags + search), or remove them.
-- **Explain** — one small LLM call per task, written in the conversation's
-  language.
-
-## Screenshots
-
-_Taken with the bundle running in the web profile — replace with your own._
-
-| Dark | Light |
-|---|---|
-| ![Chat-area widget dark](shots/chatAreaWidgetDark.png) | ![Chat-area widget light](shots/chatAreaWidgetLight.png) |
-| ![Tasks dark](shots/tasks-dark.png) | |
+- **Explain** — one small LLM call per task; the analysis **streams in** as it
+  is generated and is written in the **conversation's language** (a tiny LLM
+  call detects the ISO 639-1 code of the task's user prompt). The result is a
+  compact ~60-100 word report in four labeled lines — `Wanted:` / `Happened:` /
+  `Avoid:` / `Next time:` — rendered as rich text with bold accent labels.
 
 ## Security
 
@@ -58,7 +64,8 @@ See [SECURITY.md](SECURITY.md) for the full review. Summary: the three HTTP
 routes are POST-only, cap request bodies, validate all input, and apply the same
 browser-trust fence as the harness `/api` prefix (loopback/trustedHosts Host,
 same-origin Origin, `sec-fetch-site`); the explain route has an anti-abuse
-throttle; nothing is written to the session log; zero runtime dependencies.
+throttle and hard timeouts so a stalled model can never wedge it; nothing is
+written to the session log; zero runtime dependencies.
 
 ## How it works
 
@@ -68,8 +75,12 @@ throttle; nothing is written to the session log; zero runtime dependencies.
   cost, tool signals and waste flags. No network, no model calls.
 - The same node half registers `POST /token-anxiety/explain` on the harness
   webserver (`ctx.webServer`): the widget's Explain button fetch()es it and the
-  handler runs the LLM analysis (the same pipeline the `explain_task` tool
-  uses). Nothing is appended to the session log, so sessions stay loadable.
+  handler runs the LLM analysis. The response **streams back as NDJSON**
+  (`{"delta": …}` lines) so the widget renders the answer as it is generated; a
+  60s host timeout aborts stalled LLM streams (the client aborts at 70s and
+  shows a visible error). The language is detected with one tiny LLM call
+  returning an ISO 639-1 code. Nothing is appended to the session log, so
+  sessions stay loadable.
 - `POST /token-anxiety/pricing-sync` (same trust fence) fetches the official
   DeepSeek pricing page, turns it into readable text, and sends it with a strict
   JSON schema to an LLM call — no layout scraping in code. The model returns
@@ -169,7 +180,7 @@ dsh-token-anxiety/
 ├── index.js                # host half: projection fold + explain_task tool + /token-anxiety/explain + /token-anxiety/pricing-sync + /token-anxiety/currencies routes
 ├── lib/client.js           # browser half: the widget (hand-written bundle)
 ├── SECURITY.md             # security review
-├── shots/                  # UI screenshots (dark/light, tabs, currency chooser)
+├── shots/                  # UI screenshots (chat-area dark/light, tasks)
 └── LICENSE                 # MIT
 ```
 
