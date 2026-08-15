@@ -15,7 +15,6 @@ conversation:
 - a **currency manager**: COP / USD / CNY by default, add or remove any currency
   (flags + search), per-currency regional formatting (¥, €, £, ₩…), visible FX
   rates cached daily from a keyless API
-- a Prices tab: current vs projected pricing per model, plus FX rates
 - click-to-explain: a direct host route — no agent turn — that writes the
   analysis in the **conversation's language**
 - **i18n**: full Chinese UI when the harness locale is `zh` (defaults to CNY)
@@ -39,8 +38,6 @@ It survives restarts: it is composed through the profile, not loaded at runtime.
 - **Tasks** — sortable per-task table (`#` or share %). Click a bar to select
   it and run **Explain**; hover a row for details. The hour strip filters by
   peak/valley hours or waste flags.
-- **Prices** — current vs projected per-model rates (USD per 1M tokens) plus FX
-  rates for every enabled currency.
 - **Currency** — pick any enabled currency (defaults COP / USD / CNY); open the
   chooser to see FX rates, add more (flags + search), or remove them.
 - **Explain** — one small LLM call per task, written in the conversation's
@@ -53,7 +50,7 @@ _Taken with the bundle running in the web profile — replace with your own._
 | Dark | Light |
 |---|---|
 | ![Overview dark](shots/overview-dark.png) | ![Overview light](shots/overview-light.png) |
-| ![Tasks dark](shots/tasks-dark.png) | ![Prices dark](shots/prices-dark.png) |
+| ![Tasks dark](shots/tasks-dark.png) | ![Tasks light](shots/tasks-light.png) |
 | ![Currency chooser dark](shots/currency-dark.png) | |
 
 ## Security
