@@ -2,31 +2,26 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-The Token Anxiety widget, packaged as an installable out-of-tree bundle. A small
-status widget sits in the band under the chat composer and shows, for the open
-conversation:
+The Token Anxiety widget shows you exactly what every task in your conversation
+cost — live, while you work. It sits quietly in the band under the chat box and
+tells you when DeepSeek prices are peaking, which tasks drank your tokens, and
+why — no setup, no extra dependencies.
 
-- live peak/valley pricing status (DeepSeek pricing windows) plus local time
-- current cost plus a **projected post-hike** figure (the **Projected** checkbox
-  is on by default; projected values render in red, peak/valley split)
-- a per-task **cost table**: sortable, with a cost column and hover details
-- an hour filter strip with peak/valley/waste presets and peak-accented cells
-- a **currency manager**: COP / USD / CNY by default, add or remove any currency
-  (flags + search), per-currency regional formatting (¥, €, £, ₩…), visible FX
-  rates cached daily from a keyless API
-- **click-to-explain**: streams a short, structured analysis in the
-  **conversation's language** (LLM-detected, ISO 639-1)
-- **i18n**: full Chinese UI when the harness locale is `zh` (defaults to CNY)
-- dark and light themes, following the harness's resolved theme
+![Tasks tab](shots/Tasksdark.png)
 
-<table>
-  <tr>
-    <td><img src="shots/chatAreaWidgetDark.png" alt="Widget in the chat area (dark)" width="340"></td>
-    <td><img src="shots/chatAreaWidgetLight.png" alt="Widget in the chat area (light)" width="340"></td>
-  </tr>
-</table>
+- **Live pricing status** — peak/valley windows for your timezone, plus local time
+- **Cost at a glance** — your current cost, and the projected post-hike figure in
+  red when prices change
+- **Per-task breakdown** — a sortable table of every task with its total cost and
+  token usage; hover any row for details
+- **Currency in your terms** — COP / USD / CNY out of the box, plus ~40 more with
+  regional formatting (¥, €, £, ₩…) and live FX rates
+- **One-click explain** — "why did this task cost so much?" gets a short, streamed
+  answer written in your language
+- **Dark & light, English & Chinese** — follows your harness theme and locale
 
-It survives restarts: it is composed through the profile, not loaded at runtime.
+It is packaged as an installable bundle for DeepSeek Harness (composed through
+your profile, so it survives restarts).
 
 ## Requirements
 
@@ -38,6 +33,14 @@ It survives restarts: it is composed through the profile, not loaded at runtime.
 ## Usage
 
 - Hover or click the widget in the composer band to open the popup.
+
+  <table>
+    <tr>
+      <td><img src="shots/chatAreaWidgetDark.png" alt="Widget in the chat area (dark)" width="340"></td>
+      <td><img src="shots/chatAreaWidgetLight.png" alt="Widget in the chat area (light)" width="340"></td>
+    </tr>
+  </table>
+
 - **Overview** — headline cost in a big hero number (current, plus the projected
   post-hike figure in red when **Projected** is on), tasks / requests / tokens,
   and the pricing table: current vs projected rates per model, with the
@@ -56,12 +59,7 @@ It survives restarts: it is composed through the profile, not loaded at runtime.
   **peak/valley split** on two rows. Hover a row for a details tooltip; click a
   bar to select the task and run **Explain**.
 
-  <table>
-    <tr>
-      <td><img src="shots/Tasksdark.png" alt="Tasks tab (dark)" width="340"></td>
-      <td><img src="shots/chatTasksLight.png" alt="Tasks tab (light)" width="340"></td>
-    </tr>
-  </table>
+  <img src="shots/chatTasksLight.png" alt="Tasks tab (light)" width="340">
 
 - **Currency** — pick any enabled currency (defaults COP / USD / CNY); open the
   chooser to see FX rates, add more (flags + search), or remove them.
