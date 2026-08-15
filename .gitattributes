@@ -1,0 +1,5 @@
+# Normalize text files to LF on every platform (Linux/macOS/Windows).
+* text=auto eol=lf
+
+# Images stay binary.
+*.png binary

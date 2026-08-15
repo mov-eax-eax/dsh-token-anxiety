@@ -94,7 +94,7 @@ throttle; nothing is written to the session log; zero runtime dependencies.
 
 ```sh
 # from any directory; the path is absolute
-dsh plugin --profile web add F:/repodsh/dsh-token-anxiety
+dsh plugin --profile web add /path/to/dsh-token-anxiety
 ```
 
 Then restart the web server (`dsh web` / however you launch it). A restart is
@@ -182,4 +182,4 @@ dsh-token-anxiety/
 
 ## License
 
-[MIT](LICENSE) © Angel Tocancipa
+[MIT](LICENSE) © mov-eax-eax
