@@ -49,9 +49,8 @@ _Taken with the bundle running in the web profile — replace with your own._
 
 | Dark | Light |
 |---|---|
-| ![Overview dark](shots/overview-dark.png) | ![Overview light](shots/overview-light.png) |
-| ![Tasks dark](shots/tasks-dark.png) | ![Tasks light](shots/tasks-light.png) |
-| ![Currency chooser dark](shots/currency-dark.png) | |
+| ![Chat-area widget dark](shots/chatAreaWidgetDark.png) | ![Chat-area widget light](shots/chatAreaWidgetLight.png) |
+| ![Tasks dark](shots/tasks-dark.png) | |
 
 ## Security
 
