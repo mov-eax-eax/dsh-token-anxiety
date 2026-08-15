@@ -882,7 +882,7 @@ function buildExplainPrompt(t, ctxInfo, fullPrompt, prevPrompt, lang) {
   return L.join('\n')
 }
 
-async function explainTask(ctx, args) {
+async function explainTask(ctx, args, onDelta) {
   const sd = explainSessionData(ctx, args && args.sessionId)
   if (!sd.sessionId) return { error: 'no session' }
   const key = args && args.key
@@ -927,9 +927,13 @@ async function explainTask(ctx, args) {
     let truncated = false
     let failure = null
     for await (const chunk of llm.stream(request)) {
-      if (chunk.type === 'text-delta') text += chunk.text
-      else if (chunk.type === 'block-end' && chunk.block && chunk.block.type === 'text') text += chunk.block.text
-      else if (chunk.type === 'finish' && chunk.reason) {
+      if (chunk.type === 'text-delta') {
+        text += chunk.text
+        if (onDelta) onDelta(chunk.text)
+      } else if (chunk.type === 'block-end' && chunk.block && chunk.block.type === 'text') {
+        text += chunk.block.text
+        if (onDelta) onDelta(chunk.block.text)
+      } else if (chunk.type === 'finish' && chunk.reason) {
         if (chunk.reason.kind === 'max-tokens') truncated = true
         else if (chunk.reason.kind !== 'stop' && failure === null) {
           const f = chunk.reason.failure
@@ -954,7 +958,7 @@ async function explainTask(ctx, args) {
   }
   let out = result.text.trim()
   if (!out && result.failure) return { error: 'LLM call failed: ' + result.failure }
-  if (result.truncated) out += '\n\n[truncated \u2014 the analysis hit the token limit; ask again with a narrower task]'
+  if (result.truncated) out += EXPLAIN_TRUNCATED_MARKER
   return { text: out }
 }
 
@@ -1149,6 +1153,7 @@ function readOverride() {
 
 // In-memory anti-abuse state for the explain route (LLM calls cost money).
 const explainState = { last: 0, inFlight: 0 }
+const EXPLAIN_TRUNCATED_MARKER = '\n\n[truncated \u2014 the analysis hit the token limit; ask again with a narrower task]'
 
 async function fetchFxRates(existing) {
   const fx = existing && existing.fx
@@ -1239,16 +1244,28 @@ export function apply(ctx) {
         }
         explainState.last = now
         explainState.inFlight += 1
+        // The analysis streams back as NDJSON lines ({"delta": "…"} per chunk,
+        // then {"error": "…"} or {"done": true, "truncated": bool}). The raw
+        // node:http server writes flush immediately, so the widget can render
+        // the answer as it is generated.
+        res.writeHead(200, { 'Content-Type': 'application/x-ndjson; charset=utf-8', 'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no' })
         let result
         try {
-          result = await explainTask(ctx, { sessionId: args.sessionId, key: 't:' + task })
+          result = await explainTask(ctx, { sessionId: args.sessionId, key: 't:' + task }, (delta) => {
+            res.write(JSON.stringify({ delta }) + '\n')
+          })
+          if (result.error) {
+            res.write(JSON.stringify({ error: result.error }) + '\n')
+          } else {
+            if (result.truncated) res.write(JSON.stringify({ delta: EXPLAIN_TRUNCATED_MARKER }) + '\n')
+            res.write(JSON.stringify({ done: true, truncated: !!result.truncated }) + '\n')
+          }
         } catch (e) {
-          result = { error: String((e && e.message) || e) }
+          res.write(JSON.stringify({ error: String((e && e.message) || e) }) + '\n')
         } finally {
           explainState.inFlight -= 1
         }
-        res.writeHead(result.error ? 500 : 200, { 'Content-Type': 'application/json' })
-        res.end(JSON.stringify(result))
+        res.end()
       },
     }), 'token-anxiety: explain route')
   // Sync official pricing: fetch the DeepSeek pricing page, parse the current
