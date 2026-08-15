@@ -808,26 +808,36 @@ function computeConversation(res) {
 }
 
 // ---- conversation language detection ----------------------------------------
-// The analysis should read in the user's language: detect the script of the
-// conversation's user messages, fall back to accent/stop-word heuristics for
-// Latin scripts, and default to English when nothing is conclusive.
+// The analysis should read in the language of the user message being analyzed.
+// Each candidate prompt is judged on its own: count the letters per script and
+// pick the majority script (long Latin runs like identifiers/paths are ignored
+// as code tokens, so "fix SessionFormatUnsupportedError \u7684\u95ee\u9898" is
+// Chinese, not English). Latin scripts fall back to accent/stop-word
+// heuristics; a short, language-neutral message ("restarted") yields no signal.
+// Candidates are tried in relevance order: the task's own prompt, the previous
+// task's prompt, then the most recent user prompts. A single stray character
+// anywhere in the conversation can no longer force the wrong language.
 const LANG_NAME = { en: 'English', es: 'Spanish', zh: 'Chinese', ko: 'Korean', ja: 'Japanese', ru: 'Russian', fr: 'French', de: 'German', pt: 'Portuguese', ar: 'Arabic', he: 'Hebrew', th: 'Thai', it: 'Italian', nl: 'Dutch', tr: 'Turkish', vi: 'Vietnamese' }
-function detectLanguage(texts) {
-  const joined = (texts || []).filter((s) => typeof s === 'string').join('\n')
-  if (!joined) return 'en'
-  const scripts = [
-    { re: /[\u3040-\u30ff]/, lang: 'ja' },
-    { re: /[\uac00-\ud7af]/, lang: 'ko' },
-    { re: /[\u4e00-\u9fff\u3400-\u4dbf]/, lang: 'zh' },
-    { re: /[\u0400-\u04ff]/, lang: 'ru' },
-    { re: /[\u0600-\u06ff]/, lang: 'ar' },
-    { re: /[\u0590-\u05ff]/, lang: 'he' },
-    { re: /[\u0e00-\u0e7f]/, lang: 'th' },
-  ]
-  for (const s of scripts) if (s.re.test(joined)) return s.lang
-  const latin = joined.replace(/[^\u0000-\u024f]/g, ' ')
-  let best = 'en'
-  let bestScore = 0
+function langOfText(text) {
+  if (!text) return null
+  const s = String(text)
+  const cjk = (s.match(/[\u4e00-\u9fff\u3400-\u4dbf]/g) || []).length
+  const kana = (s.match(/[\u3040-\u30ff]/g) || []).length
+  const hangul = (s.match(/[\uac00-\ud7af]/g) || []).length
+  const cyr = (s.match(/[\u0400-\u04ff]/g) || []).length
+  const arab = (s.match(/[\u0600-\u06ff]/g) || []).length
+  const heb = (s.match(/[\u0590-\u05ff]/g) || []).length
+  const thai = (s.match(/[\u0e00-\u0e7f]/g) || []).length
+  // Latin letters in runs of 20+ are almost certainly code/identifiers, not
+  // natural language, so they are dropped before the script majority test.
+  const noCode = s.replace(/[a-zA-Z]{20,}/g, ' ')
+  const latin = (noCode.match(/[a-zA-Z]{1,19}/g) || []).join('').length
+  const scripts = [['zh', cjk], ['ja', kana], ['ko', hangul], ['ru', cyr], ['ar', arab], ['he', heb], ['th', thai]]
+    .filter(([, n]) => n > 0)
+    .sort((a, b) => b[1] - a[1])
+  const top = scripts[0]
+  if (top && top[1] >= Math.max(2, latin)) return top[0]
+  const latinText = s.replace(/[^\u0000-\u024f]/g, ' ')
   const scored = [
     { lang: 'es', marks: /[ñÑ¿¡áéíóúÁÉÍÓÚ]/, words: /\b(que|el|la|los|las|para|con|por|una|del|este|esto)\b/i, w: 2 },
     { lang: 'fr', marks: /[àâçéèêëîïôùûüœŒ]/, words: /\b(le|la|les|des|pour|avec|dans|une|sur|que|est|nous)\b/i, w: 2 },
@@ -835,13 +845,25 @@ function detectLanguage(texts) {
     { lang: 'pt', marks: /[ãõÃÕç]/, words: /\b(uma|não|para|com|isso|são|mais|como)\b/i, w: 2 },
     { lang: 'it', marks: /[àèéìòù]/, words: /\b(il|lo|la|di|che|per|con|questo|questa)\b/i, w: 2 },
   ]
-  for (const s of scored) {
+  let best = null
+  let bestScore = 0
+  for (const s2 of scored) {
     let score = 0
-    if (s.marks.test(latin)) score += 3
-    if (s.words.test(latin)) score += s.w
-    if (score > bestScore) { bestScore = score; best = s.lang }
+    if (s2.marks.test(latinText)) score += 3
+    if (s2.words.test(latinText)) score += s2.w
+    // Require a real signal (accent + at least one stop word, or two+ stop
+    // words): a single "per" in "PRICE PER TASK" must not flip to Italian.
+    if (score >= 4 && score > bestScore) { bestScore = score; best = s2.lang }
   }
   return best
+}
+function detectLanguage(texts) {
+  for (const t of texts || []) {
+    if (typeof t !== 'string' || !t.trim()) continue
+    const lang = langOfText(t)
+    if (lang) return lang
+  }
+  return 'en'
 }
 
 // Clip a long text to its head and tail so big task prompts cannot bloat the
@@ -918,7 +940,12 @@ async function explainTask(ctx, args, onDelta) {
   }
   if (!model) model = sd.model || 'deepseek-v4-flash'
   if (!provider || !model) return { error: 'no provider/model for LLM call' }
-  const lang = detectLanguage([...fullPrompts.entries()].filter(([k]) => k.indexOf('t:') === 0).map(([, v]) => v))
+  // The analysis language follows the user message being analyzed: the task's
+  // own prompt first, then the previous task's prompt, then the most recent
+  // user prompts (so an English "restarted" is analyzed in English even when
+  // the conversation's first message was in another language).
+  const recentPrompts = [...fullPrompts.entries()].filter(([k]) => k.indexOf('t:') === 0).map(([, v]) => v).slice(-4).reverse()
+  const lang = detectLanguage([fullPrompt, prevPrompt, ...recentPrompts])
   const prompt = buildExplainPrompt(task, ctxInfo, fullPrompt, prevPrompt, lang)
   const sys = 'You are an expert on coding-agent token efficiency. Answer in plain text only: no markdown headers, no preamble, no chain-of-thought reasoning. Produce the requested analysis in the language of the conversation and end with the user-facing prompt guidance section.'
   const request = { provider, model, messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }], system: sys, maxTokens: 700, temperature: 0.4 }
