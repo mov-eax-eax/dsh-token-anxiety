@@ -866,6 +866,34 @@ function detectLanguage(texts) {
   return 'en'
 }
 
+// ---- LLM language detection ------------------------------------------------
+// The primary path: one tiny LLM call (a few tokens) that reads the user
+// message to classify and returns its ISO 639-1 code. The script heuristics
+// above stay only as a fallback when the call fails or answers something
+// unrecognized.
+const ISO3_TO_2 = { eng: 'en', spa: 'es', zho: 'zh', chi: 'zh', kor: 'ko', jpn: 'ja', rus: 'ru', fra: 'fr', fre: 'fr', deu: 'de', ger: 'de', por: 'pt', ara: 'ar', heb: 'he', tha: 'th', ita: 'it', nld: 'nl', dut: 'nl', tur: 'tr', vie: 'vi' }
+async function detectLanguageLlm(llm, provider, model, sample) {
+  if (!sample) return null
+  const prompt = 'What language is this text written in? Reply with only the ISO 639-1 code (en, es, zh, ja, ko, fr, de, pt, ru, ar, he, th, it, nl, tr, vi, ...). The FIRST block is the message to classify; the later blocks are context and may be in other languages.\n\n' + sample
+  const sys = 'You are a language detector. Reply with a single lowercase ISO 639-1 code and nothing else.'
+  const request = { provider, model, messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }], system: sys, maxTokens: 8, temperature: 0 }
+  let text = ''
+  try {
+    for await (const chunk of llm.stream(request)) {
+      if (chunk.type === 'text-delta') text += chunk.text
+      else if (chunk.type === 'block-end' && chunk.block && chunk.block.type === 'text') text += chunk.block.text
+    }
+  } catch (e) {
+    return null
+  }
+  const t = text.trim().toLowerCase()
+  const two = t.match(/\b(?:en|es|zh|ko|ja|ru|fr|de|pt|ar|he|th|it|nl|tr|vi)\b/)
+  if (two) return two[0]
+  const three = t.match(/\b([a-z]{3})\b/)
+  if (three && ISO3_TO_2[three[1]]) return ISO3_TO_2[three[1]]
+  return null
+}
+
 // Clip a long text to its head and tail so big task prompts cannot bloat the
 // LLM context (the main reason explain was slow and hit the token limit).
 function clip(text, max) {
@@ -940,12 +968,17 @@ async function explainTask(ctx, args, onDelta) {
   }
   if (!model) model = sd.model || 'deepseek-v4-flash'
   if (!provider || !model) return { error: 'no provider/model for LLM call' }
-  // The analysis language follows the user message being analyzed: the task's
-  // own prompt first, then the previous task's prompt, then the most recent
-  // user prompts (so an English "restarted" is analyzed in English even when
-  // the conversation's first message was in another language).
+  // The analysis language follows the user message being analyzed: ask a tiny
+  // LLM call for the ISO 639-1 code of the task's prompt (with the previous
+  // and most recent prompts as context), falling back to the script heuristics
+  // only when the call fails or returns an unknown code.
   const recentPrompts = [...fullPrompts.entries()].filter(([k]) => k.indexOf('t:') === 0).map(([, v]) => v).slice(-4).reverse()
-  const lang = detectLanguage([fullPrompt, prevPrompt, ...recentPrompts])
+  const langSample = [fullPrompt, prevPrompt, ...recentPrompts].filter((s) => typeof s === 'string' && s.trim()).join('\n---\n')
+  let lang = null
+  try {
+    lang = await detectLanguageLlm(llm, provider, model, langSample)
+  } catch (e) {}
+  if (!lang) lang = detectLanguage([fullPrompt, prevPrompt, ...recentPrompts])
   const prompt = buildExplainPrompt(task, ctxInfo, fullPrompt, prevPrompt, lang)
   const sys = 'You are an expert on coding-agent token efficiency. Answer in plain text only: no markdown headers, no preamble, no chain-of-thought reasoning. Produce the requested analysis in the language of the conversation and end with the user-facing prompt guidance section.'
   const request = { provider, model, messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }], system: sys, maxTokens: 700, temperature: 0.4 }
