@@ -7,6 +7,14 @@ cost — live, while you work. It sits quietly in the band under the chat box an
 tells you when DeepSeek prices are peaking, which tasks drank your tokens, and
 why — no setup, no extra dependencies.
 
+**Install** (from any directory; the path is absolute):
+
+```sh
+dsh plugin --profile web add /path/to/dsh-token-anxiety
+```
+
+Then restart `dsh web` and refresh the page — done.
+
 ![Tasks tab](shots/Tasksdark.png)
 
 - **Live pricing status** — peak/valley windows for your timezone, plus local time
