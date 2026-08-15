@@ -923,7 +923,12 @@ async function explainTask(ctx, args, onDelta) {
   if (!lang || !LANG_NAME[lang]) lang = 'en'
   const prompt = buildExplainPrompt(task, ctxInfo, fullPrompt, prevPrompt, lang)
   const sys = 'You are an expert on coding-agent token efficiency. Answer in plain text only: no markdown headers, no preamble, no chain-of-thought reasoning. Produce the requested analysis in the language of the conversation and end with the user-facing prompt guidance section.'
-  const request = { provider, model, messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }], system: sys, maxTokens: 300, temperature: 0.4 }
+  // One AbortController guards both LLM calls: if the provider stalls, the
+  // timeout aborts the streams, which then end with an 'aborted' finish chunk
+  // instead of hanging the route (and wedging the explain throttle) forever.
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 60000)
+  const request = { provider, model, messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }], system: sys, maxTokens: 300, temperature: 0.4, signal: controller.signal }
   const collect = async () => {
     let text = ''
     let truncated = false
@@ -955,12 +960,17 @@ async function explainTask(ctx, args, onDelta) {
     try {
       result = await collect()
     } catch (e) {
+      clearTimeout(timeout)
       return { error: 'LLM call failed: ' + String((e && e.message) || e) }
     }
   }
   let out = result.text.trim()
-  if (!out && result.failure) return { error: 'LLM call failed: ' + result.failure }
+  if (!out && result.failure) {
+    clearTimeout(timeout)
+    return { error: 'LLM call failed: ' + (result.failure === 'aborted' ? 'analysis timed out' : result.failure) }
+  }
   if (result.truncated) out += EXPLAIN_TRUNCATED_MARKER
+  clearTimeout(timeout)
   return { text: out }
 }
 
