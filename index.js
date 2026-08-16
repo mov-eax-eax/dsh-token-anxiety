@@ -1443,3 +1443,7 @@ export function apply(ctx) {
     },
   })
 }
+
+// Test hook: exposes the pure internals to `node --test` without touching the
+// plugin contract (the Cordis loader reads name/inject/apply only).
+export const __test = { clip, buildExplainPrompt, computeConversation, detectLanguageLlm, activePricing, PRICING }

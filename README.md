@@ -209,6 +209,7 @@ dsh-token-anxiety/
 ├── cordis.patch.yml        # one plugin row
 ├── index.js                # host half: projection fold + explain_task tool + /token-anxiety/explain + /token-anxiety/pricing-sync + /token-anxiety/currencies routes
 ├── lib/client.js           # browser half: the widget (hand-written bundle)
+├── test/core.test.js       # unit tests (npm test, node --test)
 ├── SECURITY.md             # security review
 ├── shots/                  # UI screenshots (chat area, overview, tasks, explain — dark/light)
 └── LICENSE                 # MIT
