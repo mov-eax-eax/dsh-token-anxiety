@@ -1,5 +1,7 @@
 # dsh-token-anxiety
 
+English | [中文](README.zh.md)
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 The Token Anxiety widget tracks the cost of every task in your conversation in
@@ -210,6 +212,7 @@ dsh-token-anxiety/
 ├── index.js                # host half: projection fold + explain_task tool + /token-anxiety/explain + /token-anxiety/pricing-sync + /token-anxiety/currencies routes
 ├── lib/client.js           # browser half: the widget (hand-written bundle)
 ├── test/core.test.js       # unit tests (npm test, node --test)
+├── README.zh.md            # Chinese README (中文说明)
 ├── SECURITY.md             # security review
 ├── shots/                  # UI screenshots (chat area, overview, tasks, explain — dark/light)
 └── LICENSE                 # MIT
