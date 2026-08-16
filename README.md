@@ -11,6 +11,10 @@ additional dependencies.
 **Install** (from any directory; the path is absolute):
 
 ```sh
+# from npm (published package)
+dsh plugin --profile web add dsh-token-anxiety
+
+# or from a local checkout
 dsh plugin --profile web add /path/to/dsh-token-anxiety
 ```
 
