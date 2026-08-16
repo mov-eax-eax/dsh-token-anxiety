@@ -77,12 +77,43 @@ dsh plugin --profile web add /path/to/dsh-token-anxiety
 
 ## 安装
 
+### 从 npm 安装（已发布包）
+
+该包已发布到公共 npm registry：
+
+```sh
+npm view dsh-token-anxiety          # 验证：包名、版本 0.1.x、MIT
+```
+
+安装到 harness profile（该命令会将其加入 profile 的 `package.json` 依赖及其
+`dsh.profile.bundles` 列表）：
+
+```sh
+dsh plugin --profile web add dsh-token-anxiety
+```
+
+或在任意 npm 项目中直接安装：
+
+```sh
+npm install dsh-token-anxiety
+# 或锁定精确版本：
+npm install dsh-token-anxiety@0.1.0
+```
+
+> 注意：要让 `dsh web` 加载小部件，**profile** 必须依赖该包并在
+> `dsh.profile.bundles` 中列出它 —— `dsh plugin --profile web add
+> dsh-token-anxiety` 会自动完成这两步。
+
+### 从本地检出安装
+
 ```sh
 # 从任意目录；路径为绝对路径
 dsh plugin --profile web add /path/to/dsh-token-anxiety
 ```
 
-然后重启 web server（`dsh web` 或你习惯的启动方式）。必须重启，因为 bundle 行与 client 启动图在启动时组合。
+### 无论哪种方式安装后
+
+重启 web server（`dsh web` 或你习惯的启动方式）。必须重启，因为 bundle 行与 client 启动图在启动时组合。
 
 ## 编辑后更新
 

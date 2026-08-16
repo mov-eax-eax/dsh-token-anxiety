@@ -131,12 +131,43 @@ written to the session log; zero runtime dependencies.
 
 ## Install
 
+### From npm (published package)
+
+The package is published to the public npm registry:
+
+```sh
+npm view dsh-token-anxiety          # verify: name, version 0.1.x, MIT
+```
+
+Install it into a harness profile (this adds it to the profile's
+`package.json` dependencies and its `dsh.profile.bundles` list):
+
+```sh
+dsh plugin --profile web add dsh-token-anxiety
+```
+
+Or install the package directly in any npm project:
+
+```sh
+npm install dsh-token-anxiety
+# or pin the exact version:
+npm install dsh-token-anxiety@0.1.0
+```
+
+> Note: for `dsh web` to load the widget, the **profile** must depend on the
+> package and list it in `dsh.profile.bundles` — `dsh plugin --profile web add
+> dsh-token-anxiety` does both automatically.
+
+### From a local checkout
+
 ```sh
 # from any directory; the path is absolute
 dsh plugin --profile web add /path/to/dsh-token-anxiety
 ```
 
-Then restart the web server (`dsh web` / however you launch it). A restart is
+### After either install
+
+Restart the web server (`dsh web` / however you launch it). A restart is
 required because the bundle row and the client boot graph are composed at boot.
 
 ## Update after editing
