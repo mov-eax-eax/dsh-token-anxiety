@@ -4,7 +4,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { __test } from '../index.js'
 
-const { clip, buildExplainPrompt, computeConversation, detectLanguageLlm, activePricing, PRICING } = __test
+const { clip, buildExplainPrompt, computeConversation, detectLanguageLlm, activePricing, PRICING, projectionDefinition } = __test
 
 // ---- clip ------------------------------------------------------------------
 
@@ -136,4 +136,27 @@ test('default currencies are COP, USD, CNY', () => {
   // The embedded default (the gitignored pricing.override.json may carry a
   // machine-local chooser order and is not part of the code contract).
   assert.deepEqual(PRICING.currencies, ['COP', 'USD', 'CNY'])
+})
+
+// ---- projection definition (harness sessionProjections.register contract) --
+
+test('projectionDefinition registers with the current harness shape (stateSchema + wire)', () => {
+  const def = projectionDefinition()
+  assert.equal(def.key, 'tokenAnxiety')
+  // The harness registry reads stateSchema for the fold state...
+  assert.ok(def.stateSchema && typeof def.stateSchema.parse === 'function', 'stateSchema with parse present')
+  // ...and a wire block for the client-visible view. Without wire the unit is
+  // host-only and the browser widget never receives a value.
+  assert.ok(def.wire, 'wire block present')
+  assert.ok(def.wire.viewSchema && typeof def.wire.viewSchema.parse === 'function', 'wire.viewSchema with parse present')
+  assert.equal(typeof def.wire.view, 'function', 'wire.view is a function')
+  assert.equal(typeof def.init, 'function')
+  assert.equal(typeof def.apply, 'function')
+  assert.ok(Number.isSafeInteger(def.stateVersion) && def.stateVersion >= 0)
+})
+
+test('projectionDefinition no longer carries the legacy top-level schema/view fields', () => {
+  const def = projectionDefinition()
+  assert.equal(def.schema, undefined, 'no legacy top-level schema field')
+  assert.equal(def.view, undefined, 'no legacy top-level view field')
 })

@@ -1206,16 +1206,30 @@ async function fetchFxRates(existing) {
   }
 }
 
+/**
+ * The 'tokenAnxiety' session-projection definition.
+ *
+ * The harness's `sessionProjections.register` contract expects `stateSchema`
+ * (the fold-state schema) and a `wire` block (`{ viewSchema, view }`) for the
+ * client-visible view. Passing the old field names (`schema` at top level,
+ * `view` without a `wire` block) silently registers the unit as host-only: it
+ * folds and checkpoints, but its value is omitted from every client snapshot
+ * and change notification, so the browser widget never renders.
+ */
+function projectionDefinition() {
+  return {
+    key: 'tokenAnxiety',
+    stateSchema: schema,
+    init,
+    apply: fold,
+    stateVersion: 4 + pricingVersion(),
+    wire: { viewSchema: schema, view },
+  }
+}
+
 export function apply(ctx) {
   ctx.inject(['sessionProjections'], (projectionCtx) => {
-    projectionCtx.sessionProjections.register({
-      key: 'tokenAnxiety',
-      schema,
-      init,
-      apply: fold,
-      view,
-      stateVersion: 4 + pricingVersion(),
-    })
+    projectionCtx.sessionProjections.register(projectionDefinition())
   })
   // Widget explain without an agent turn: a direct host route on the harness
   // webserver. The bundle has no client-to-host RPC channel, so the browser
@@ -1446,4 +1460,4 @@ export function apply(ctx) {
 
 // Test hook: exposes the pure internals to `node --test` without touching the
 // plugin contract (the Cordis loader reads name/inject/apply only).
-export const __test = { clip, buildExplainPrompt, computeConversation, detectLanguageLlm, activePricing, PRICING }
+export const __test = { clip, buildExplainPrompt, computeConversation, detectLanguageLlm, activePricing, PRICING, projectionDefinition, schema }
