@@ -29,7 +29,10 @@ export const inject = ['webServer']
 const PRICING = {
   asOf: '2026-08-15',
   source: 'https://api-docs.deepseek.com/zh-cn/quick_start/pricing/',
-  effectiveFromUtc: '2026-08-16T16:00:00Z',
+  // Peak/off-peak is the everyday rate; the weekend rule (off-peak all day on
+  // Sat/Sun, Beijing Time) takes effect Sun Aug 23 00:00 Beijing = Sat Aug 22
+  // 16:00 UTC. effectiveFromUtc gates only that weekend rule.
+  effectiveFromUtc: '2026-08-22T16:00:00Z',
   peakWindowsUtc: [{ start: 1, end: 4 }, { start: 6, end: 10 }],
   valleyFactor: 0.5,
   fx: {
@@ -40,14 +43,16 @@ const PRICING = {
   currencies: ['COP', 'USD', 'CNY'],
   models: {
     'deepseek-v4-flash': {
-      current: { miss: 0.14, hit: 0.0028, output: 0.28 },
       peak: { miss: 0.44, hit: 0.014, output: 1.32 },
       valley: { miss: 0.22, hit: 0.007, output: 0.66 },
     },
     'deepseek-v4-pro': {
-      current: { miss: 0.435, hit: 0.003625, output: 0.87 },
       peak: { miss: 1.32, hit: 0.044, output: 3.96 },
       valley: { miss: 0.66, hit: 0.022, output: 1.98 },
+    },
+    'deepseek-v4-flash-vision-exp': {
+      peak: { miss: 0.44, hit: 0.014, output: 1.32 },
+      valley: { miss: 0.22, hit: 0.007, output: 0.66 },
     },
   },
 }
@@ -103,7 +108,16 @@ function pricingVersion() {
   return Math.abs(h)
 }
 
+// Beijing = UTC+8; the weekend rule keys on the weekday in Beijing time.
+function isWeekendUtc8(ts) {
+  const day = new Date(ts + 8 * 60 * 60 * 1000).getUTCDay()
+  return day === 0 || day === 6
+}
+
 function isPeakUtc(ts) {
+  // On/after the weekend-rule effective date, Sat/Sun (Beijing) are off-peak
+  // all day regardless of hour; otherwise peak/off-peak is set by the hour.
+  if (ts >= Date.parse(activePricing.effectiveFromUtc) && isWeekendUtc8(ts)) return false
   const h = new Date(ts).getUTCHours()
   return activePricing.peakWindowsUtc.some((w) => h >= w.start && h < w.end)
 }
@@ -181,8 +195,9 @@ function fold(state, event) {
       const ts = typeof event.time === 'number' ? event.time : Date.now()
       const model = state.model
       const prices = activePricing.models[model]
-      const reg = ts >= Date.parse(activePricing.effectiveFromUtc) ? (isPeakUtc(ts) ? 'peak' : 'valley') : 'current'
-      const postReg = isPeakUtc(ts) ? 'peak' : 'valley'
+      const peak = isPeakUtc(ts)
+      const reg = peak ? 'peak' : 'valley'
+      const postReg = peak ? 'peak' : 'valley'
       const missUsd = miss / 1e6
       const hitUsd = hit / 1e6
       const outUsd = out / 1e6
@@ -191,6 +206,20 @@ function fold(state, event) {
       const postPeak = missUsd * prices.peak.miss + hitUsd * prices.peak.hit + outUsd * prices.peak.output
       const postValley = missUsd * prices.valley.miss + hitUsd * prices.valley.hit + outUsd * prices.valley.output
       const task = state.tasks[turn]
+      // Per-task per-model sub-buckets, so the client can render one cost
+      // track + token stack per model (flash vs pro) in the Tasks tab.
+      const prevModels = (task && task.models) || {}
+      const prevSub = prevModels[model] || { requests: 0, miss: 0, hit: 0, out: 0, cop: 0, postCop: 0, postPeak: 0, postValley: 0 }
+      const nextSub = {
+        requests: prevSub.requests + 1,
+        miss: prevSub.miss + miss,
+        hit: prevSub.hit + hit,
+        out: prevSub.out + out,
+        cop: prevSub.cop + cop,
+        postCop: prevSub.postCop + postCop,
+        postPeak: prevSub.postPeak + postPeak,
+        postValley: prevSub.postValley + postValley,
+      }
       const nextTask = task
         ? {
           ...task,
@@ -203,8 +232,9 @@ function fold(state, event) {
           postPeak: task.postPeak + postPeak,
           postValley: task.postValley + postValley,
           last: Math.max(task.last, ts),
+          models: { ...prevModels, [model]: nextSub },
         }
-        : { turn, requests: 1, miss, hit, out, cop, postCop, postPeak, postValley, last: ts }
+        : { turn, requests: 1, miss, hit, out, cop, postCop, postPeak, postValley, last: ts, models: { [model]: nextSub } }
       const bucket = state.byModel[model] || { requests: 0, miss: 0, hit: 0, out: 0, cop: 0, postCop: 0, postPeak: 0, postValley: 0 }
       const nextBucket = {
         requests: bucket.requests + 1,
@@ -328,6 +358,21 @@ function view(state) {
         .sort((a, b) => b.count - a.count)
         .slice(0, 10)
       : []
+    const taskModels = task.models || {}
+    const modelList = Object.keys(taskModels).map((mn) => {
+      const m = taskModels[mn]
+      return {
+        model: mn,
+        requests: m.requests,
+        missTokens: m.miss,
+        hitTokens: m.hit,
+        outputTokens: m.out,
+        cop: toCop(m.cop),
+        postCop: toCop(m.postCop),
+        postPeakCop: toCop(m.postPeak),
+        postValleyCop: toCop(m.postValley),
+      }
+    })
     built.push({
       turn,
       session: null,
@@ -342,6 +387,7 @@ function view(state) {
       postCop,
       postPeakCop: toCop(task.postPeak),
       postValleyCop: toCop(task.postValley),
+      models: modelList,
       last: task.last,
       preview: previewList.find((entry) => entry.turn === turn)?.preview || null,
       waste: flagByTurn.get(turn) || [],
@@ -668,8 +714,9 @@ function computeConversation(res) {
       row.out += o
       row.models[cur] = (row.models[cur] || 0) + 1
       if (Number.isFinite(ts) && ts > row.last) row.last = ts
-      const reg = (Number.isFinite(ts) && ts >= ems) ? (isPeakUtc(new Date(ts)) ? 'peak' : 'valley') : 'current'
-      const postReg = Number.isFinite(ts) ? (isPeakUtc(new Date(ts)) ? 'peak' : 'valley') : 'valley'
+      const peak = Number.isFinite(ts) ? isPeakUtc(new Date(ts)) : false
+      const reg = peak ? 'peak' : 'valley'
+      const postReg = peak ? 'peak' : 'valley'
       const pr = activePricing.models[cur]
       const p = pr[reg]
       const pp = pr[postReg]
@@ -1056,7 +1103,6 @@ function buildPricingPrompt(text) {
     '  "valleyFactor": 0.5,',
     '  "models": {',
     '    "<model id as written on the page>": {',
-    '      "current": {"miss": 1, "hit": 0.02, "output": 2},',
     '      "peak": {"miss": 1, "hit": 0.02, "output": 2},',
     '      "valley": {"miss": 1, "hit": 0.02, "output": 2}',
     '    }',
@@ -1067,7 +1113,7 @@ function buildPricingPrompt(text) {
     '- peakWindowsLocal: the peak-hour windows in Beijing time, 0-23, exactly as stated (e.g. 9:00-12:00 -> {"start":9,"end":12}).',
     '- valleyFactor: the ratio of idle-period to peak-period price (the page states idle = half of peak).',
     '- models: every model the page prices. miss = input cache miss, hit = input cache hit, output = output, CNY per 1M tokens.',
-    '- current is the price in effect before effectiveLocal; peak/valley are the new rates (peak hours / idle hours).',
+    '- peak is the peak-hour rate; valley is the off-peak/idle-hour rate (the page states idle = half of peak).',
     'Copy the exact numbers from the page; do not invent, round, or convert currency.',
     'PAGE TEXT:',
     text,
@@ -1117,18 +1163,16 @@ async function extractPricing(ctx, html) {
   const models = {}
   for (const [modelId, m] of Object.entries(out.models)) {
     if (!m || typeof m !== 'object') continue
-    const cur = m.current || {}
     const peak = m.peak || {}
     const valley = m.valley || {}
-    const val = (src, key) => (typeof src[key] === 'number' && src[key] > 0 ? src[key] : (typeof cur[key] === 'number' && cur[key] > 0 ? cur[key] : 0))
-    const miss = val(cur, 'miss')
-    const hit = val(cur, 'hit')
-    const output = val(cur, 'output')
-    if (!miss || !hit || !output) continue
+    const num = (src, key, fb) => (typeof src[key] === 'number' && src[key] > 0 ? src[key] : fb)
+    const baseMiss = num(peak, 'miss', num(valley, 'miss', 0))
+    const baseHit = num(peak, 'hit', num(valley, 'hit', 0))
+    const baseOutput = num(peak, 'output', num(valley, 'output', 0))
+    if (!baseMiss || !baseHit || !baseOutput) continue
     models[modelId] = {
-      current: { miss: usd(miss), hit: usd(hit), output: usd(output) },
-      peak: { miss: usd(val(peak, 'miss')), hit: usd(val(peak, 'hit')), output: usd(val(peak, 'output')) },
-      valley: { miss: usd(val(valley, 'miss')), hit: usd(val(valley, 'hit')), output: usd(val(valley, 'output')) },
+      peak: { miss: usd(num(peak, 'miss', baseMiss)), hit: usd(num(peak, 'hit', baseHit)), output: usd(num(peak, 'output', baseOutput)) },
+      valley: { miss: usd(num(valley, 'miss', baseMiss)), hit: usd(num(valley, 'hit', baseHit)), output: usd(num(valley, 'output', baseOutput)) },
     }
   }
   if (!Object.keys(models).length) throw new Error('LLM pricing output contained no usable model')
@@ -1210,11 +1254,11 @@ export function apply(ctx) {
   ctx.inject(['sessionProjections'], (projectionCtx) => {
     projectionCtx.sessionProjections.register({
       key: 'tokenAnxiety',
-      schema,
+      stateSchema: schema,
       init,
       apply: fold,
-      view,
-      stateVersion: 4 + pricingVersion(),
+      wire: { viewSchema: schema, view },
+      stateVersion: 5 + pricingVersion(),
     })
   })
   // Widget explain without an agent turn: a direct host route on the harness

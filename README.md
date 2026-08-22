@@ -10,6 +10,11 @@ pricing status (peak/valley), per-task token usage and cost, and a one-click
 analysis of where tokens were spent. It is installed as a bundle with no
 additional dependencies.
 
+**Compatibility:** this release (`0.1.1`) targets **DeepSeek Harness ≥ 0.1.1-rc.2**.
+The session projection is registered with the modern API (`stateSchema` +
+`wire`); on older harness builds (≤ 0.1.0-rc.7) the widget mounts but renders
+without data, because those builds still expect the pre-`wire` register shape.
+
 **Install** (from any directory; the path is absolute):
 
 ```sh

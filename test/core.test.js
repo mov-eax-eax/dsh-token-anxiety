@@ -53,8 +53,8 @@ test('buildExplainPrompt asks for the analysis in the detected language', () => 
 test('computeConversation folds usage into per-task cost (current vs peak/valley)', () => {
   const flash = activePricing.models['deepseek-v4-flash']
   const fx = activePricing.fx.usdCop
-  const before = Date.parse('2026-08-15T12:00:00Z') // before effectiveFromUtc -> current regime
-  const peak = Date.parse('2026-08-17T02:00:00Z')   // after effective, UTC hour 2 -> peak regime
+  const before = Date.parse('2026-08-15T12:00:00Z') // off-peak hour, before the weekend rule -> valley regime
+  const peak = Date.parse('2026-08-17T02:00:00Z')   // UTC hour 2 -> peak regime
   const events = [
     { type: 'request/header', data: { header: { config: { model: 'deepseek-v4-flash' } } } },
     { type: 'assistant/message', time: before, data: { turn: 1, usage: { inputTokens: 1_000_000, cacheReadTokens: 100_000, outputTokens: 50_000 } } },
@@ -71,9 +71,9 @@ test('computeConversation folds usage into per-task cost (current vs peak/valley
   assert.equal(row.hitTokens, 100_000)
   assert.equal(row.outputTokens, 50_000)
 
-  // msg1 at pre-effective time uses current rates; msg2 at peak hour uses peak rates.
-  const expectedCop = ((1_000_000 * flash.current.miss + 100_000 * flash.current.hit + 50_000 * flash.current.output) / 1e6 + (500_000 * flash.peak.miss) / 1e6) * fx
-  assert.ok(Math.abs(row.cop - Math.round(expectedCop * 100) / 100) < 1e-6, 'current+peak fold cost matches')
+  // msg1 at an off-peak hour (pre-weekend-rule) uses valley rates; msg2 at a peak hour uses peak rates.
+  const expectedCop = ((1_000_000 * flash.valley.miss + 100_000 * flash.valley.hit + 50_000 * flash.valley.output) / 1e6 + (500_000 * flash.peak.miss) / 1e6) * fx
+  assert.ok(Math.abs(row.cop - Math.round(expectedCop * 100) / 100) < 1e-6, 'valley+peak fold cost matches')
 
   // postCop uses the post-hike regime: msg1 -> valley hour, msg2 -> peak hour.
   const expectedPost = ((1_000_000 * flash.valley.miss + 100_000 * flash.valley.hit + 50_000 * flash.valley.output) / 1e6 + (500_000 * flash.peak.miss) / 1e6) * fx
